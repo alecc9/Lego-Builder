@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEGO Mosaic Builder</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f6f6f4;
+    --bg3: #eeede9;
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --text3: #9a9a9a;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.2);
+    --accent: #1a1a1a;
+    --accent-fg: #ffffff;
+    --info-bg: #e8f1fc;
+    --info-text: #1a5ca8;
+    --success-bg: #e8f5ec;
+    --success-text: #1a7a3c;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1e;
+      --bg2: #2c2c2e;
+      --bg3: #3a3a3c;
+      --text: #f2f2f7;
+      --text2: #aeaeb2;
+      --text3: #6e6e73;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --accent: #f2f2f7;
+      --accent-fg: #1c1c1e;
+      --info-bg: #0d2b4e;
+      --info-text: #7ab4f5;
+      --success-bg: #0d2e1a;
+      --success-text: #52c97a;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container { max-width: 720px; margin: 0 auto; }
+
+  header { margin-bottom: 2rem; }
+  header h1 {
+    font-size: 26px; font-weight: 600; letter-spacing: -0.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header h1 .brick-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 8px;
+    background: #e3000b; color: #fff; font-size: 18px; flex-shrink: 0;
+  }
+  header p { font-size: 15px; color: var(--text2); margin-top: 6px; }
+  header .gh-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--text2); text-decoration: none;
+    border: 1px solid var(--border2); border-radius: 6px;
+    padding: 4px 10px; margin-top: 10px;
+    transition: background 0.15s;
+  }
+  header .gh-link:hover { background: var(--bg2); }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border2); border-radius: var(--radius);
+    padding: 2.5rem; text-align: center; cursor: pointer;
+    background: var(--bg2); position: relative; transition: background 0.15s, border-color 0.15s;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    background: var(--bg3); border-color: var(--accent);
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon {
+    width: 48px; height: 48px; border-radius: 50%; background: var(--bg);
+    border: 1px solid var(--border2); display: flex; align-items: center;
+    justify-content: center; margin: 0 auto 14px; box-shadow: var(--shadow);
+  }
+  .upload-zone h3 { font-size: 16px; font-weight: 500; }
+  .upload-zone p { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+  .preview-img {
+    max-height: 160px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); display: block; margin: 1.25rem auto 0;
+    box-shadow: var(--shadow);
+  }
+
+  /* Controls */
+  .controls-panel { margin-top: 1.25rem; display: none; }
+  .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) { .controls-grid { grid-template-columns: 1fr; } }
+
+  .ctrl label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .ctrl select, .ctrl input[type=number] {
+    width: 100%; padding: 8px 10px; font-size: 14px;
+    background: var(--bg); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text);
+    appearance: none; -webkit-appearance: none;
+  }
+  .ctrl select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6b6b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+  .piece-row { display: flex; align-items: center; gap: 10px; }
+  .piece-row input[type=range] {
+    flex: 1; accent-color: var(--accent);
+    height: 4px; cursor: pointer;
+  }
+  .piece-row .val { font-size: 13px; font-weight: 500; min-width: 52px; text-align: right; }
+
+  .btn-primary {
+    width: 100%; margin-top: 14px; padding: 12px;
+    background: var(--accent); color: var(--accent-fg);
+    border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: -0.2px;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:active { transform: scale(0.99); }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+  .btn-sm {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border2);
+    padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px;
+    cursor: pointer; font-weight: 500; transition: background 0.12s;
+  }
+  .btn-sm:hover { background: var(--bg2); }
+  .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-export {
+    background: var(--info-bg); color: var(--info-text); border: none;
+    padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px;
+    cursor: pointer; font-weight: 500; transition: opacity 0.12s;
+  }
+  .btn-export:hover { opacity: 0.85; }
+
+  /* Status */
+  .status {
+    display: none; margin-top: 1rem; padding: 12px 16px;
+    background: var(--bg2); border-radius: var(--radius-sm);
+    font-size: 14px; color: var(--text2); text-align: center;
+  }
+  .status .dots::after { content: '.'; animation: dots 1s steps(3,end) infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%,100%{content:'...'} }
+
+  /* Results */
+  #results { margin-top: 2rem; display: none; }
+
+  .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  @media (max-width: 480px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
+  .sum-card {
+    background: var(--bg2); border-radius: var(--radius-sm);
+    padding: 12px 14px; text-align: center; border: 1px solid var(--border);
+  }
+  .sum-card .val { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1; }
+  .sum-card .lbl { font-size: 11px; color: var(--text2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+  .tab {
+    padding: 9px 16px; font-size: 14px; cursor: pointer;
+    border: none; background: none; color: var(--text2);
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    font-weight: 500; transition: color 0.12s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Canvas */
+  .canvas-wrap { display: flex; justify-content: center; overflow: auto; }
+  canvas { border: 1px solid var(--border); border-radius: var(--radius-sm); display: block; }
+
+  /* Parts table */
+  .parts-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .parts-header span { font-size: 13px; color: var(--text2); }
+
+  .optim-note {
+    background: var(--success-bg); color: var(--success-text);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    font-size: 13px; line-height: 1.5; margin-bottom: 12px;
+  }
+
+  .parts-wrap { overflow-x: auto; }
+  .parts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .parts-table th {
+    text-align: left; padding: 8px 10px;
+    border-bottom: 1px solid var(--border); color: var(--text2);
+    font-weight: 500; font-size: 12px; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .parts-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .parts-table tr:last-child td { border-bottom: none; }
+  .parts-table tr:hover td { background: var(--bg2); }
+  .swatch {
+    width: 16px; height: 16px; border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.12); display: inline-block;
+    vertical-align: middle; margin-right: 6px; flex-shrink: 0;
+  }
+  .bl-link { color: var(--info-text); text-decoration: none; font-size: 12px; }
+  .bl-link:hover { text-decoration: underline; }
+  .qty { font-weight: 600; text-align: right; }
+
+  /* Build instructions */
+  .layer-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .layer-nav span { font-size: 14px; color: var(--text2); }
+  .layer-nav strong { color: var(--text); }
+  .badge {
+    font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 500;
+    background: var(--info-bg); color: var(--info-text);
+  }
+  .layer-info {
+    font-size: 13px; color: var(--text2); margin-top: 10px;
+    line-height: 1.6; padding: 10px; background: var(--bg2);
+    border-radius: var(--radius-sm);
+  }
+  .layer-info strong { color: var(--text); }
+
+  footer {
+    margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--text3); text-align: center;
+  }
+  footer a { color: var(--text2); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>
+      <span class="brick-icon">&#9632;</span>
+      LEGO Mosaic Builder
+    </h1>
+    <p>Upload any image — get an optimised brick parts list and layer-by-layer build instructions</p>
+    <a class="gh-link" href="https://github.com/" target="_blank">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      Open source — MIT licence
+    </a>
+  </header>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="upload-icon">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3v10M5 7l5-4 5 4M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h3>Upload your image</h3>
+    <p>Click or drag &amp; drop — JPG, PNG, WEBP</p>
+  </div>
+  <img id="previewImg" class="preview-img" style="display:none" alt="Uploaded image preview">
+
+  <div class="controls-panel" id="controlsPanel">
+    <div style="margin-top:1.25rem">
+      <div class="controls-grid">
+        <div class="ctrl">
+          <label>Max piece count</label>
+          <div class="piece-row">
+            <input type="range" id="pieceLimit" min="500" max="6000" step="100" value="2500">
+            <span class="val" id="pieceLimitVal">2,500</span>
+          </div>
+        </div>
+        <div class="ctrl">
+          <label>Layers (height)</label>
+          <select id="layerCount">
+            <option value="1">1 layer — flat mosaic</option>
+            <option value="3" selected>3 layers</option>
+            <option value="5">5 layers</option>
+            <option value="8">8 layers</option>
+          </select>
+        </div>
+        <div class="ctrl">
+          <label>Colour palette</label>
+          <select id="paletteSelect">
+            <option value="full">Full modern palette (40 colours)</option>
+            <option value="classic">Classic palette (20 colours)</option>
+          </select>
+        </div>
+        <div class="ctrl">
+          <label>Aspect ratio</label>
+          <select id="aspectMode">
+            <option value="fit">Fit (preserve ratio)</option>
+            <option value="fill">Fill (crop to square)</option>
+          </select>
+        </div>
+      </div>
+      <button id="buildBtn" class="btn-primary">Analyse image and build LEGO plan</button>
+    </div>
+  </div>
+
+  <div class="status" id="statusMsg"><span class="dots">Processing</span></div>
+
+  <div id="results">
+    <div class="summary-cards">
+      <div class="sum-card"><div class="val" id="totalPieces">—</div><div class="lbl">Total pieces</div></div>
+      <div class="sum-card"><div class="val" id="savedPieces">—</div><div class="lbl">Pieces saved</div></div>
+      <div class="sum-card"><div class="val" id="totalColors">—</div><div class="lbl">Colours</div></div>
+      <div class="sum-card"><div class="val" id="gridSize">—</div><div class="lbl">Grid (studs)</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="preview">Mosaic preview</button>
+      <button class="tab" data-tab="parts">Parts list</button>
+      <button class="tab" data-tab="instructions">Build instructions</button>
+    </div>
+
+    <div id="tab-preview" class="tab-content active">
+      <div class="canvas-wrap"><canvas id="mosaicCanvas"></canvas></div>
+      <p style="font-size:12px;color:var(--text2);text-align:center;margin-top:10px">LEGO colour-mapped mosaic preview with stud markers</p>
+    </div>
+
+    <div id="tab-parts" class="tab-content">
+      <div class="optim-note" id="optimNote"></div>
+      <div class="parts-header">
+        <span id="partsCount"></span>
+        <button class="btn-export" id="exportCsvBtn">⬇ Export CSV</button>
+      </div>
+      <div class="parts-wrap">
+        <table class="parts-table">
+          <thead>
+            <tr>
+              <th style="width:30px">#</th>
+              <th>Colour</th>
+              <th>Piece type</th>
+              <th style="width:60px;text-align:right">Qty</th>
+              <th style="width:80px">BrickLink</th>
+            </tr>
+          </thead>
+          <tbody id="partsBody"></tbody>
+        </table>
+      </div>
+      <p style="font-size:12px;color:var(--text2);margin-top:12px">BrickLink links open the exact colour + part search. Import the CSV into BrickLink's Wanted List for bulk sourcing.</p>
+    </div>
+
+    <div id="tab-instructions" class="tab-content">
+      <div class="layer-nav">
+        <button class="btn-sm" id="prevLayer" disabled>← Prev</button>
+        <span>Layer <strong id="layerNum">1</strong> of <strong id="layerTotal">1</strong></span>
+        <button class="btn-sm" id="nextLayer">Next →</button>
+        <span id="newBadge" class="badge" style="display:none"></span>
+      </div>
+      <div class="canvas-wrap"><canvas id="instrCanvas"></canvas></div>
+      <div class="layer-info" id="layerInfo"></div>
+      <p style="font-size:12px;color:var(--text2);margin-top:10px">Build bottom layer first. Previous layers shown faded for orientation. Brick outlines show exact placement.</p>
+    </div>
+  </div>
+
+  <footer>
+    <p>LEGO Mosaic Builder &mdash; open source, MIT licence &mdash; 
+    <a href="https://www.bricklink.com" target="_blank">BrickLink</a> links open official catalogue searches &mdash;
+    all processing happens in your browser, no data is uploaded</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ── LEGO colour palettes ──────────────────────────────────────────────────
+const PALETTE_FULL = [
+  {id:1,  name:'White',             hex:'#F4F4F4', blId:1},
+  {id:2,  name:'Tan',               hex:'#E4CD9E', blId:2},
+  {id:3,  name:'Light bluish gray', hex:'#AFB5C7', blId:86},
+  {id:4,  name:'Dark bluish gray',  hex:'#595D6E', blId:85},
+  {id:5,  name:'Black',             hex:'#212121', blId:11},
+  {id:6,  name:'Red',               hex:'#B40000', blId:5},
+  {id:7,  name:'Dark red',          hex:'#720E0F', blId:59},
+  {id:8,  name:'Coral',             hex:'#FF6D77', blId:220},
+  {id:9,  name:'Orange',            hex:'#FE8A18', blId:4},
+  {id:10, name:'Dark orange',       hex:'#A95500', blId:68},
+  {id:11, name:'Yellow',            hex:'#F2CD37', blId:3},
+  {id:12, name:'Bright light yellow',hex:'#F8F177',blId:226},
+  {id:13, name:'Lime',              hex:'#A0CA3C', blId:119},
+  {id:14, name:'Bright green',      hex:'#4B9F4A', blId:36},
+  {id:15, name:'Green',             hex:'#237841', blId:6},
+  {id:16, name:'Dark green',        hex:'#184632', blId:80},
+  {id:17, name:'Olive green',       hex:'#9B9A5A', blId:155},
+  {id:18, name:'Sky blue',          hex:'#7DBFDD', blId:212},
+  {id:19, name:'Medium blue',       hex:'#5A93DB', blId:72},
+  {id:20, name:'Blue',              hex:'#1B4AA0', blId:7},
+  {id:21, name:'Dark blue',         hex:'#0D2B5E', blId:63},
+  {id:22, name:'Medium azure',      hex:'#36AEBF', blId:322},
+  {id:23, name:'Dark azure',        hex:'#078BC9', blId:321},
+  {id:24, name:'Sand blue',         hex:'#6E91B3', blId:135},
+  {id:25, name:'Dark purple',       hex:'#3D1585', blId:89},
+  {id:26, name:'Medium lavender',   hex:'#AC78B1', blId:324},
+  {id:27, name:'Lavender',          hex:'#C9A9D4', blId:325},
+  {id:28, name:'Pink',              hex:'#FC97AC', blId:23},
+  {id:29, name:'Magenta',           hex:'#923978', blId:71},
+  {id:30, name:'Sand green',        hex:'#A0BCAC', blId:48},
+  {id:31, name:'Dark tan',          hex:'#958A73', blId:69},
+  {id:32, name:'Reddish brown',     hex:'#89351D', blId:88},
+  {id:33, name:'Brown',             hex:'#583927', blId:120},
+  {id:34, name:'Dark brown',        hex:'#352100', blId:308},
+  {id:35, name:'Light nougat',      hex:'#F6D7B3', blId:283},
+  {id:36, name:'Nougat',            hex:'#D09168', blId:28},
+  {id:37, name:'Medium nougat',     hex:'#AA7D55', blId:312},
+  {id:38, name:'Bright light orange',hex:'#FCAC00',blId:191},
+  {id:39, name:'Dark pink',         hex:'#CC6699', blId:47},
+  {id:40, name:'Yellow-green',      hex:'#D6E056', blId:326},
+];
+
+const PALETTE_CLASSIC = [
+  {id:1, name:'White',             hex:'#F4F4F4', blId:1},
+  {id:2, name:'Tan',               hex:'#E4CD9E', blId:2},
+  {id:3, name:'Light bluish gray', hex:'#AFB5C7', blId:86},
+  {id:4, name:'Dark bluish gray',  hex:'#595D6E', blId:85},
+  {id:5, name:'Black',             hex:'#212121', blId:11},
+  {id:6, name:'Red',               hex:'#B40000', blId:5},
+  {id:7, name:'Dark red',          hex:'#720E0F', blId:59},
+  {id:8, name:'Orange',            hex:'#FE8A18', blId:4},
+  {id:9, name:'Yellow',            hex:'#F2CD37', blId:3},
+  {id:10,name:'Lime',              hex:'#A0CA3C', blId:119},
+  {id:11,name:'Green',             hex:'#237841', blId:6},
+  {id:12,name:'Dark green',        hex:'#184632', blId:80},
+  {id:13,name:'Sky blue',          hex:'#7DBFDD', blId:212},
+  {id:14,name:'Blue',              hex:'#1B4AA0', blId:7},
+  {id:15,name:'Dark blue',         hex:'#0D2B5E', blId:63},
+  {id:16,name:'Dark purple',       hex:'#3D1585', blId:89},
+  {id:17,name:'Pink',              hex:'#FC97AC', blId:23},
+  {id:18,name:'Reddish brown',     hex:'#89351D', blId:88},
+  {id:19,name:'Brown',             hex:'#583927', blId:120},
+  {id:20,name:'Nougat',            hex:'#D09168', blId:28},
+];
+
+// Brick types ordered largest-first for greedy packing
+const BRICK_TYPES = [
+  {name:'2×4 plate', partId:'3020', w:4, h:2},
+  {name:'2×3 plate', partId:'3021', w:3, h:2},
+  {name:'2×2 plate', partId:'3022', w:2, h:2},
+  {name:'1×6 plate', partId:'3666', w:6, h:1},
+  {name:'1×4 plate', partId:'3710', w:4, h:1},
+  {name:'1×3 plate', partId:'3623', w:3, h:1},
+  {name:'1×2 plate', partId:'3023', w:2, h:1},
+  {name:'1×1 plate', partId:'3024', w:1, h:1},
+];
+
+// ── Colour matching ───────────────────────────────────────────────────────
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+function colorDist(a, b) {
+  const dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+  return dr*dr + dg*dg + db*db;
+}
+function findClosest(r, g, b, palette) {
+  let best = palette[0], bestD = Infinity;
+  for (const c of palette) {
+    const d = colorDist([r,g,b], hexToRgb(c.hex));
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best;
+}
+
+// ── Greedy brick packing ─────────────────────────────────────────────────
+function packLayer(colorGrid, W, H) {
+  const placed = [];
+  const used = Array.from({length:H}, () => new Uint8Array(W));
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (used[y][x]) continue;
+      const colorId = colorGrid[y][x].id;
+      let bestBrick = BRICK_TYPES[BRICK_TYPES.length - 1];
+
+      for (const brick of BRICK_TYPES) {
+        if (x + brick.w > W || y + brick.h > H) continue;
+        let ok = true;
+        outer: for (let dy = 0; dy < brick.h; dy++)
+          for (let dx = 0; dx < brick.w; dx++)
+            if (used[y+dy][x+dx] || colorGrid[y+dy][x+dx].id !== colorId) { ok=false; break outer; }
+        if (ok) { bestBrick = brick; break; }
+      }
+
+      for (let dy = 0; dy < bestBrick.h; dy++)
+        for (let dx = 0; dx < bestBrick.w; dx++)
+          used[y+dy][x+dx] = 1;
+
+      placed.push({x, y, w:bestBrick.w, h:bestBrick.h, color:colorGrid[y][x], brick:bestBrick});
+    }
+  }
+  return placed;
+}
+
+// ── App state ─────────────────────────────────────────────────────────────
+let state = {};
+let currentLayer = 0;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const fileInput    = document.getElementById('fileInput');
+const uploadZone   = document.getElementById('uploadZone');
+const previewImg   = document.getElementById('previewImg');
+const controlsPanel= document.getElementById('controlsPanel');
+const buildBtn     = document.getElementById('buildBtn');
+const pieceLimit   = document.getElementById('pieceLimit');
+const pieceLimitVal= document.getElementById('pieceLimitVal');
+const statusMsg    = document.getElementById('statusMsg');
+
+// ── Drag-and-drop visual feedback ─────────────────────────────────────────
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleFile(file);
+});
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+function handleFile(file) {
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  previewImg.style.display = 'block';
+  controlsPanel.style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  statusMsg.style.display = 'none';
+  state.url = url;
+}
+
+pieceLimit.addEventListener('input', () => {
+  pieceLimitVal.textContent = parseInt(pieceLimit.value).toLocaleString();
+});
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'instructions') renderLayerView();
+  });
+});
+
+// ── Build ─────────────────────────────────────────────────────────────────
+buildBtn.addEventListener('click', () => {
+  if (!state.url) return;
+  buildBtn.disabled = true;
+  showStatus('Analysing image');
+  const img = new Image();
+  img.onload = () => {
+    showStatus('Mapping to LEGO colours');
+    setTimeout(() => {
+      showStatus('Packing bricks (this may take a moment for large grids)');
+      setTimeout(() => {
+        try {
+          runBuild(img);
+          statusMsg.style.display = 'none';
+        } catch(err) {
+          statusMsg.textContent = 'Error: ' + err.message;
+        }
+        buildBtn.disabled = false;
+      }, 60);
+    }, 50);
+  };
+  img.src = state.url;
+});
+
+function showStatus(msg) {
+  statusMsg.style.display = 'block';
+  statusMsg.innerHTML = '<span class="dots">' + msg + '</span>';
+}
+
+function runBuild(img) {
+  const limit     = parseInt(pieceLimit.value);
+  const numLayers = parseInt(document.getElementById('layerCount').value);
+  const palette   = document.getElementById('paletteSelect').value === 'classic' ? PALETTE_CLASSIC : PALETTE_FULL;
+  const aspectMode= document.getElementById('aspectMode').value;
+
+  const ratio = img.width / img.height;
+  const studsPerLayer = Math.floor(limit / numLayers);
+  let W = Math.round(Math.sqrt(studsPerLayer * ratio));
+  let H = Math.round(Math.sqrt(studsPerLayer / ratio));
+  W = Math.max(4, Math.min(W, 120));
+  H = Math.max(4, Math.min(H, 120));
+  if (aspectMode === 'fill') { const s = Math.max(W, H); W = s; H = s; }
+
+  // Downsample image to grid
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H;
+  const ctx = off.getContext('2d');
+  ctx.drawImage(img, 0, 0, W, H);
+  const raw = ctx.getImageData(0, 0, W, H).data;
+
+  // Build colour grid
+  const colorGrid = [];
+  for (let y = 0; y < H; y++) {
+    const row = [];
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      row.push(findClosest(raw[i], raw[i+1], raw[i+2], palette));
+    }
+    colorGrid.push(row);
+  }
+
+  // Pack bricks per layer (same colour grid for all layers)
+  const layerPlacements = [];
+  for (let l = 0; l < numLayers; l++) layerPlacements.push(packLayer(colorGrid, W, H));
+
+  // Aggregate parts list
+  const partsMap = {};
+  const totalBeforePack = W * H * numLayers;
+  let totalAfterPack = 0;
+
+  for (const placements of layerPlacements) {
+    totalAfterPack += placements.length;
+    for (const p of placements) {
+      const key = p.color.id + '|||' + p.brick.name + '|||' + p.brick.partId;
+      if (!partsMap[key]) partsMap[key] = {color: p.color, brick: p.brick, qty: 0};
+      partsMap[key].qty++;
+    }
+  }
+
+  const partsList = Object.values(partsMap).sort((a, b) => b.qty - a.qty);
+  state = {...state, colorGrid, W, H, numLayers, layerPlacements, partsList, totalAfterPack, totalBeforePack};
+  currentLayer = 0;
+  renderResults();
+}
+
+// ── Render results ────────────────────────────────────────────────────────
+function renderResults() {
+  const {W, H, numLayers, partsList, totalAfterPack, totalBeforePack} = state;
+  document.getElementById('results').style.display = 'block';
+  const saved = totalBeforePack - totalAfterPack;
+  document.getElementById('totalPieces').textContent = totalAfterPack.toLocaleString();
+  document.getElementById('savedPieces').textContent = saved.toLocaleString();
+  document.getElementById('totalColors').textContent = new Set(partsList.map(p => p.color.id)).size;
+  document.getElementById('gridSize').textContent = W + '×' + H;
+  document.getElementById('layerTotal').textContent = numLayers;
+
+  // Reset to preview tab
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(x => x.classList.remove('active'));
+  document.querySelector('[data-tab="preview"]').classList.add('active');
+  document.getElementById('tab-preview').classList.add('active');
+
+  renderMosaicCanvas();
+  renderPartsTable();
+  currentLayer = 0;
+  updateLayerNav();
+}
+
+function renderMosaicCanvas() {
+  const {colorGrid, W, H} = state;
+  const canvas = document.getElementById('mosaicCanvas');
+  const cell = Math.max(3, Math.min(14, Math.floor(640 / Math.max(W, H))));
+  canvas.width = W * cell; canvas.height = H * cell;
+  const ctx = canvas.getContext('2d');
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const c = colorGrid[y][x];
+      ctx.fillStyle = c.hex;
+      ctx.fillRect(x*cell, y*cell, cell, cell);
+      if (cell >= 6) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.07)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x*cell, y*cell, cell, cell);
+        // stud highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.24)';
+        ctx.beginPath();
+        ctx.arc(x*cell + cell/2, y*cell + cell/2, cell * 0.22, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function renderPartsTable() {
+  const {partsList, totalAfterPack, totalBeforePack, W, H, numLayers} = state;
+  const uniqueBricks = new Set(partsList.map(p => p.brick.name)).size;
+  const saved = totalBeforePack - totalAfterPack;
+
+  document.getElementById('optimNote').innerHTML =
+    '&#10003; Smart packing saved <strong>' + saved.toLocaleString() + ' pieces</strong> vs 1×1 plates only — ' +
+    'using <strong>' + uniqueBricks + ' brick types</strong> across ' + W + '×' + H +
+    ' grid × ' + numLayers + ' layer' + (numLayers > 1 ? 's' : '') + '.';
+
+  document.getElementById('partsCount').textContent =
+    partsList.length + ' line items · ' + totalAfterPack.toLocaleString() + ' pieces total';
+
+  const body = document.getElementById('partsBody');
+  body.innerHTML = '';
+  partsList.forEach((p, i) => {
+    const url = 'https://www.bricklink.com/v2/catalog/catalogitem.page?P=' + p.brick.partId + '&idColor=' + p.color.blId;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="color:var(--text2);font-size:12px">' + (i+1) + '</td>' +
+      '<td><span class="swatch" style="background:' + p.color.hex + '"></span>' + p.color.name + '</td>' +
+      '<td style="color:var(--text2)">' + p.brick.name + '</td>' +
+      '<td class="qty">' + p.qty.toLocaleString() + '</td>' +
+      '<td><a class="bl-link" href="' + url + '" target="_blank" rel="noopener">search ↗</a></td>';
+    body.appendChild(tr);
+  });
+}
+
+// ── Layer instructions ────────────────────────────────────────────────────
+function renderLayerView() {
+  if (!state.layerPlacements) return;
+  const {W, H, layerPlacements, numLayers} = state;
+
+  const canvas = document.getElementById('instrCanvas');
+  const cell = Math.max(4, Math.min(14, Math.floor(640 / Math.max(W, H))));
+  canvas.width = W * cell; canvas.height = H * cell;
+  const ctx = canvas.getContext('2d');
+
+  // Previous layers faded
+  for (let l = 0; l < currentLayer; l++) {
+    ctx.globalAlpha = 0.18;
+    for (const p of layerPlacements[l]) {
+      ctx.fillStyle = p.color.hex;
+      ctx.fillRect(p.x*cell, p.y*cell, p.w*cell, p.h*cell);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // Current layer with outlines and studs
+  for (const p of layerPlacements[currentLayer]) {
+    ctx.fillStyle = p.color.hex;
+    ctx.fillRect(p.x*cell, p.y*cell, p.w*cell, p.h*cell);
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 0.8;
+    ctx.strokeRect(p.x*cell + 0.4, p.y*cell + 0.4, p.w*cell - 0.8, p.h*cell - 0.8);
+    if (cell >= 6) {
+      ctx.fillStyle = 'rgba(255,255,255,0.26)';
+      for (let sy = 0; sy < p.h; sy++) {
+        for (let sx = 0; sx < p.w; sx++) {
+          ctx.beginPath();
+          ctx.arc((p.x+sx)*cell + cell/2, (p.y+sy)*cell + cell/2, cell*0.2, 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // Layer info
+  const cur = layerPlacements[currentLayer];
+  const byBrick = {};
+  for (const p of cur) byBrick[p.brick.name] = (byBrick[p.brick.name] || 0) + 1;
+  const brickSummary = Object.entries(byBrick)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, 6)
+    .map(([n,q]) => n + ' &times;' + q)
+    .join(' &nbsp;·&nbsp; ');
+
+  document.getElementById('layerNum').textContent = currentLayer + 1;
+  document.getElementById('layerInfo').innerHTML =
+    '<strong>' + cur.length.toLocaleString() + ' pieces on this layer</strong><br>' + brickSummary;
+
+  const badge = document.getElementById('newBadge');
+  if (currentLayer > 0) {
+    badge.style.display = 'inline';
+    badge.textContent = '+' + cur.length.toLocaleString() + ' new pieces';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  updateLayerNav();
+}
+
+function updateLayerNav() {
+  const total = state.numLayers || 1;
+  document.getElementById('prevLayer').disabled = currentLayer === 0;
+  document.getElementById('nextLayer').disabled = currentLayer >= total - 1;
+}
+
+document.getElementById('prevLayer').addEventListener('click', () => {
+  if (currentLayer > 0) { currentLayer--; renderLayerView(); }
+});
+document.getElementById('nextLayer').addEventListener('click', () => {
+  if (state.layerPlacements && currentLayer < state.numLayers - 1) { currentLayer++; renderLayerView(); }
+});
+
+// ── CSV export ────────────────────────────────────────────────────────────
+document.getElementById('exportCsvBtn').addEventListener('click', () => {
+  const {partsList, W, H, numLayers} = state;
+  if (!partsList) return;
+
+  const rows = [
+    ['#', 'Colour', 'Colour BrickLink ID', 'Piece type', 'BrickLink Part ID', 'Quantity', 'BrickLink URL']
+  ];
+  partsList.forEach((p, i) => {
+    const url = 'https://www.bricklink.com/v2/catalog/catalogitem.page?P=' + p.brick.partId + '&idColor=' + p.color.blId;
+    rows.push([i+1, p.color.name, p.color.blId, p.brick.name, p.brick.partId, p.qty, url]);
+  });
+
+  const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lego-parts-' + W + 'x' + H + '-' + numLayers + 'layers.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+})();
+</script>
+</body>
+</html>
